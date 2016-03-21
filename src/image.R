@@ -12,7 +12,6 @@ require(bigmemory)
 
 setwd("/home/zamoj/Documents/doc/ensai/Rbig/project")
 ff <- file("data/andromedeSmall.txt", open = 'r')
-headerFile <- file("data/smallHeader.txt", 'w')
 redFile <- file("data/smallRed.txt", 'w')
 greenFile <- file("data/smallGreen.txt", 'w')
 blueFile <- file("data/smallBlue.txt", 'w')
@@ -21,21 +20,21 @@ dims <- as.integer( strsplit( readLines(ff, n = 3)[2] , split = ' ')[[1]] )
 rowChunkSize <- floor(dims[1] / 6) + 1  
 for( k in 1:dims[2] ){
   rowChunk <- readLines(ff, n = rowChunkSize)
-  ## Reformating line: first split each line according to double spaces: gives a list of vectors of strings.
-  ## Then on each element of the list, turn each string to a vector of integers, reassembled as a list.
-  ## Returns a doubly-nested list of integer-triplets RGB. First index=row, second=column.
-  ## pixelChunk <- lapply( strsplit( rowChunk, split = '  '), function(x) lapply(strsplit(x, split=' '), as.integer)) 
   pixels <- as.integer(unlist(strsplit( unlist(strsplit( rowChunk, split = '  ')),
 				        split=' ')))
+  # Pixels is one-long row of integers of alternating RGB.
   N <- length(pixels)
-  vecRed <- pixels[1:N %% 3 == 0]
+  vecRed <- pixels[1:N %% 3 == 0] #  
   vecGreen <- pixels[1:N %% 3 == 1]
   vecBlue <- pixels[1:N %% 3 == 2]
-  write.table(vecRed, redFile, sep=";")
-  write.table(vecGreen, greenFile, sep=";")
-  write.table(vecBlue, blueFile, sep=";")
-
+  write(vecRed, redFile, append = TRUE, sep=";")
+  write(vecGreen, greenFile, append = TRUE, sep=";")
+  write(vecBlue, blueFile, append = TRUE, sep=";")
 }
+close(ff)
+close(redFile)
+close(greenFile)
+close(blueFile)
   
 
 
