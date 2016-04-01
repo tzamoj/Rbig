@@ -37,14 +37,14 @@ imat readBigMatrix(string fname, int nr, int nc){
 
 
 // [[Rcpp::export]]
-SEXP rsvd(SEXP sfname, SEXP snr, SEXP snc, SEXP sk){
+SEXP myrsvd(SEXP sfname, SEXP snr, SEXP snc, SEXP sk, SEXP sp){
   string fname = Rcpp::as<string>(sfname);
   int nr = Rcpp::as<int>(snr);
   int nc = Rcpp::as<int>(snc);
   int k = Rcpp::as<int>(sk);
+  int p = Rcpp::as<int>(sp);
   mat Qb, R, Q, U, V;
   vec s;
-  int p = 3;
   mat W = randn(nc,k+p);
   imat A = readBigMatrix(fname, nr, nc);
   Q = orth(A * W);
