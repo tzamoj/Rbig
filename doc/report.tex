@@ -1,5 +1,6 @@
 \documentclass[a4paper,11pt]{amsart}
 
+\usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{geometry}
@@ -28,26 +29,224 @@
 \includegraphics{logo.png}
 
 \section{Introduction}
+We chose in our project to investigate an aspect of Big Data that is probably different from the other groups, that has been heard about many times in the program, but has seen few instances of it so far. Our data might be voluminous, but not necessarily. The problem rather stems from the need to process that data in a certain way that requires too much computational power, even for a data volume of the order of 1GB. Moreover, the data come in rapidely and must be processed with small latency. To address this Big Data issue, we discuss a compressive sensing method via probabilistic low-rank approximations. 
+
+We will describe how these problems occur in scientific imaging and make some empirical tests on images. However, we will try our best to focus on the aspects of interest to all data scientists. In particular, we will describe the tools we used having in mind that they should be useful in many different contexts, and we hope that people will find at least something of interest to them.
+
+\subsection{Application in Imaging}
 Hyperspectral Imaging (HSI) collects and processes information from an as wide as possible spectrum of wavelengths, going far beyond the visible spectrum. If the human eye sees visible light in mostly three bands (red, green and blue), one can divide the whole spectrum of electromagnetic radiations' frequency into several hundreds to thousands of fine bands. Moreover, a single area is sampled many times for image correction to account for a variety of measurement errors. A single hyperspectral image can therefore be quite big in itself, 2-3 Gigabytes being not rare.
 
 Transmission, storage and processing of such large sets of data is practically challenging. Spectrometers are mounted on aircrafts or satellites, neither of which has the appropriate computing power or storage to deal with HSI. Dimensionality reduction methods provide solutions to those difficulties. The airbourne device encodes the images via compressive sensing methods and send it to the ground where more performant computers are available for decoding and all the heavy lifting. 
 
-A recurrent paradigm in these compressive sensing methods is to represent images as matrices, compress them to lower-dimensional matrices, which are then factorized. The result is a low-rank matrix approximation to the original image matrix. In 2006, Martinsson, Rokhlin and Tygert published a new approach to probabilistic low-rank matrix approximations that we will refer to as randomized singular value decomposition (rSVD) \cite{MRT}. A survey and extension on the subject can be found in the highly recommended seminal paper of Halko, Martinsson and Tropp \cite{HMT}. Furthermore, Martinsson and Voronin provide an implementation of the algorithm with its description in \cite{MV}, while Cand\`es and Witten found a novel and intuitive analysis of the algorithm in \cite{CW}. Finally, rSVD was applied to HSI in \cite{EHPZZ} and compared to another probalistic method, compressive-projection principal component analysis (CPPCA).
+A recurrent paradigm in these compressive sensing methods is to represent images as matrices, compress them to lower-dimensional matrices, which are then factorized. The result is a low-rank matrix approximation to the original image matrix.
 
-Probabilistic methods to deal with hard problems have a long history, and it comes as no surprise that they provide powerful computational solutions in the world of Big Data. Statisticians, perhaps not so concerned with HSI, should nonetheless be interested in low-rank matrix approximation and rSVD as a performant solution to large principal component analysis (PCA).
+\subsection{Probabilistic Methods}
+Probabilistic methods to deal with hard problems have a long history, and it comes as no surprise that they provide powerful computational solutions in the world of Big Data. In 2006, Martinsson, Rokhlin and Tygert published a new approach to probabilistic low-rank matrix approximations that we will refer to as randomized singular value decomposition (rSVD) \cite{MRT}. A survey and extension on the subject can be found in the highly recommended seminal paper of Halko, Martinsson and Tropp \cite{HMT}. Furthermore, Martinsson and Voronin provide an implementation of the algorithm with its description in \cite{MV}, while Cand\`es and Witten found a novel and intuitive analysis of the algorithm in \cite{CW}. Finally, rSVD was applied to HSI in \cite{EHPZZ}, where it was also compared to another probalistic method, compressive-projection principal component analysis (CPPCA).
 
-Very popular amongst statisticians, the R language has many pros and cons. One of the cons we have encountered is that it is not designed for numerical linear algebra. Nonetheless, we would like to bring a practical solution in R for doing rSVD and programming numerical linear algebra in general. We note that an implementation using ordinary matrices has been provided in R through the package named rsvd. However, we would like to be able to handle matrices at a scale where one has to resort to dimension reduction for computational feasibility, where rSVD becomes very helpful. 
+ Statisticians, perhaps not so concerned with HSI, should nonetheless be interested in low-rank matrix approximation and rSVD. For example, it provides a performant solution to large principal component analysis (PCA).
 
-The project thus consists in first installing a framework for efficient numerical linear algebra in R capable of working with large matrices allowing parallelisation as much as possible. We then implement rSVD in this framework and test its performance in the setting of image compressive sensing. Although HSI brings interesting challenges, it is mostly outside the scope of the current project. We rather restrict our focus to the usual color images in the visible spectrum. We nonetheless deal with a very large image, the sharpest take of the Andromede galaxy taken by the hubble telescope. The image is 4,5GB in size and is thus too large for R's memory restrictions. We compress the image using rSVD and compare its computational power and memory usage with other compression algorithms.  
+\subsection{Pragmatic Goals of the Project}
+Very popular amongst statisticians, the R language has many pros and cons. One of the cons we have encountered is that it is not designed for numerical linear algebra. Nonetheless, we would like to bring a practical solution in R for doing rSVD and programming numerical linear algebra in general.
+%However, we would like to be able to handle matrices at a scale where one has to resort to dimension reduction for computational feasibility, where rSVD becomes very helpful. 
 
+The project thus consists in first installing a framework for efficient numerical linear algebra in R capable of working with large matrices and allowing for parallelisation as much as possible. The framework should bridge the gap between R and C++. We then implement rSVD in this framework and test its performance in the setting of image compressive sensing. Although HSI brings interesting challenges, it is mostly outside the scope of the current project. We rather restrict our focus to the usual color images in the visible spectrum, as it is easier for a wider audience to visualise, including ourselves.
+
+TODO: include description of dataset.
+%We nonetheless deal with a very large image, the sharpest take of the Andromede galaxy taken by the hubble telescope. The image is 4,5GB in size and is thus too large for R's memory restrictions. We compress the image using rSVD and compare its computational power and memory usage with other compression algorithms.  
+
+Prior to this project, we had no knowledge about the topics covered. We would therefore appreciate receiving any constructive comments about it. 
 \section{The Framework}
+Our ambitious goal is to create a setup around the R language and C++ not only to implement rSVD, but that could be truly useful for us and other data scientists in the future. The framework should be easy to use, provide efficient functionalities in numerical linear algebra, use efficiently memory, be out-of-core friendly, and finally allows for parallelization as much as possible. Fortunately, the tools have already been created by the community. 
 
+%\begin{itemize}
+%  \item{Memory} R's bigmemory package ... Disappointed with bigalgebra.
+%  \item{Numerical Linear Algebra} The efficient C++ library \emph{Armadillo} provides an easy to use API similar to matlab, integrates with other great and common libraries such as LAPACK, BLAS, ATLAS and Intel MKL and integrates seamlessly with R via Rcpp and RcppArmadillo. This is why we chose to use Armadillo for matrix computations. 
+%  \item{Parallelization} Snow package...
+%\end{itemize}
+
+\subsection{Bigmemory R Package}
+The following brief discussion is mostly taken from (ref to bigmemory vignette), to which we refer for a more thorough introduction to bigmemory. 
+
+\subsubsection{Objectives of bigmemory}
+Data frames and matrices in R were designed for easy and fast manipulation on datasets that are much smaller than available RAM. A second category of datasets arise when they require more than available RAM. In that case, many R packages exist to manipulate such out-of-core data. However, the disadvantage is that the user is forced to wait for disk accesses, and they are not well-suited for synchronization between multiple processes. The bigmemory package wants to address a third kind of datasets: massive datasets of the order of 1GB that although voluminous, still fit into memory.
+
+Why do we need this third category? R makes excellent choices in design that however have noticeable side-effects for memory when it is becoming rare. Try the following 2.24GB and 1.12GB memory consumption examples:
+\begin{verbatim}
+R> x <- matrix(0, 1e+08, 3); round(object.size(x) / (1024)^3, 2)
+[1] 2.24
+R> x <- matrix(as.integer(0), 1e+08, 3); round(object.size(x) / (1024)^3, 2)
+[1] 1.12 
+\end{verbatim}
+What happens here is that R has 8-byte real numbers versus 4-byte integers, and numerical values are considered real by default. Ok, so suppose you are careful and use the second alternative, and then manipulate the matrix some more later:
+\begin{verbatim}
+R> x <- matrix(as.integer(0), 1e+08, 3)
+R> x <- x + 1
+\end{verbatim}
+What is the memory usage? No, it is not 1.12GB. Not even 2.24GB, but rather 3.36GB! There is 1.12GB for the original matrix, which is then copied and coerced to real numbers for another 2.24GB, getting a peak of 3.36GB before releasing the original matrix to get down to 2.24GB. 
+
+Other similar examples can be constructed, some even unknown to the authors. It is important however to realise that one can get easily trapped by these side-effects when in the third category of datasets, those that are voluminous but still fit in memory, at least until you manipulate them. This is where the package bigmemory and its big.matrix class create memory efficiencies. In addition, they also create opportunities for parallel computing, which is becoming increasingly important as computing power is slowly caping-off. 
+
+\subsubsection{Using bigmemory}
+The big.matrix class plays the central role in the package. It works similarly to usual matrices, for example \verb|x[,2]| gives back the second column. However, it is a pointer to the actual matrix in memory and thus is passed by reference to functions. Some usual R functions are implemented for big.matrix like \verb|nrow()|, \verb|ncol()|, and \verb|summarise()|, some in a more efficient way like \verb|mwhich()|. There are several ways to initialise a big.matrix. One can use the constructor \verb|big.matrix()| or typecast a matrix with \verb|as.big.matrix()|. However, since our matrices are big, we will rather read them in from a file with a big.matrix version of \verb|read.table()|: 
+\begin{verbatim}
+redMat <- read.big.matrix(filename = "data/smallRed.txt", sep = ' ', type = "short",
+                            backingpath = "./data/", backingfile = "smallRed.bin",
+                            descriptorfile = "smallRed.desc")
+\end{verbatim}
+The version we used here creates a backedup big.matrix on the filesystem. The type argument refers to the c++ type used to write the entries and can be any of short, integer, double. One of the current most problematic restriction is that big.matrix supports only atomic types, that is the entries must be all of the same type. It is therefore the user's duty to make sure that matrices are converted to a single type. 
+
+The backing file is specified with the backingpath and backingfile arguments. The binary file it creates is simply the raw bytes of the entries written one after the other, column by column. This is refered in matrix jargon as column-dominant serialization. This makes it easy to read in memory using our own method in C++. 
+
+The descriptorfile stores the S4 object returned by the R \verb|describe()| function. It has one attribute called description, which is a list of variables such as nrow, ncol, offsets, filename, etc... However, it does not store the backingpath, probably because that should be machine specific. 
+
+The first time one invokes read.big.matrix in R takes some non-negligible amount of time to create the files. However, if one backed it up on the filesystem as above, then you don't need to read it in again. Instead, you just attach it to your session:
+\begin{verbatim}
+redMat <- attach.big.matrix("data/smallRed.desc")
+\end{verbatim}
+
+There are sister packages to bigmemory that implements some functionalities for big.matrix. For example, biganalytics implements bigglm to do efficient generalised linear regression on a big.matrix. Another one is bigalgebra, which was supposed to implement linear algebra manipulation. However, it has only the aritmetic operations and has been under ``heavy development", although the last update on github was in 2014. We therefore do not use bigalgebra at all. 
+
+\subsection{C++ Linear Algebra Libraries}
+C++ has many efficient libraries for numerical analysis that are commonly used by developpers. In fact, R and octave themselves also rely on these libraries for some functionalities. For example, QR-decomposition in R is done through LINPACK or its more recent fork LAPACK. Naturally, we would like to make use of this power as well. We will therefore install openBLAS and Armadillo. It is better to do it in that order, as Armadillo needs to find openBLAS to configure itself to work with it.
+
+\subsubsection{openBLAS} 
+BLAS stands for basic linear algebra subprograms. These are routines that provide standard building blocks for performing basic vector and matrix operations. BLAS are efficient, portable and widely available. Higher linear algebra softwares like LAPACK use BLAS. 
+
+However, we want to make use of our multicore architecture. OpenBLAS is an open source implementation of BLAS API with many optimizations for specific processor types and is developped at the Lab of Parallel Software and Computational Science ISCAS. It claims to achieve similar performance as the proprietary freeware Intel MKL (math kernel library). We think therefore it is a good choice.
+
+Quick installation is quite easy:
+\begin{verbatim}
+cd ~/pkg
+git clone https://github.com/xianyi/OpenBLAS
+cd OpenBLAS
+make FC=gfortran
+sudo make PREFIX=/opt/openblas install
+\end{verbatim}
+This makes an installation in the /opt folder as to not collide with apt-get. OpenBLAS is also available through apt-get's libopenblas-dev package for Debian/Ubuntu. 
+
+\subsubsection{Armadillo}
+The efficient C++ library \emph{Armadillo} is open source software that provides an easy to use API similar to matlab, integrates with other great and common libraries such as LAPACK, BLAS, openBLAS, ATLAS, and Intel MKL and integrates seamlessly with R via Rcpp and RcppArmadillo. Moreover, it employs delayed evaluation and optimisation through template metaprogramming. This is why we chose to use Armadillo for matrix computations. 
+
+For installation on Linux, first make sure LAPACK, BLAS and BOOST are already installed on your computer before installing Armadillo:
+\begin{verbatim}
+sudo apt-get install liblapack-dev libblas-dev libboost-dev
+sudo apt-get install libarmadillo-dev
+\end{verbatim}
+
+Normally, configurations should be automatically done, but if need be, some config files are to be found in
+\begin{verbatim}
+nano /usr/include/armadillo_bits/config.hpp  
+\end{verbatim}
+
+We can work with Armadillo directly with R. Rcpp is a R package for seamingless C++ integration. It uses C++ objects to mimic R's objects, allowing for easier argument passing from one language to another. On top of Rcpp, RcppArmadillo adds the integration with Armadillo's objects such as vectors and matrices. 
+
+Armadillo is surprisingly well-documented and has many adepts on forums. We refer to the official website for documentation: \url{http://arma.sourceforge.net/docs.html}. Our code will provide further examples, and we will explain it as we go.
+
+\section{Randomized Low-Rank Singular Value Decomposition}
+In this section, we will briefly describe the rSVD algorithm.
+
+Given a $m\times n$ matrix $A$, the singular value decomposition (SVD) finds a $m\times m$ orthogonal matrix $U$, a $n\times n$ orthogonal matrix $V$ and a nonnegative diagonal $m\times n$ matrix $D$ such that $A = UDV^T$. The columns $u_i$ of $U$ are the left singular vectors, the columns $v_i$ of $V$ are the right singular vectors and the diagonal elements $\sigma_i$ of $D$ are the singular values.
+
+Given a number $k$ smaller than both the number of rows and the number of columns of $A$, we can truncate $D$ by keeping $\sigma_1$ through $\sigma_k$ and setting the other singular values to zero. We denote such truncated matrix by $D_k$. Then $A_k = UD_kV^T$ is the best approximation to $A$ of rank $k$ in the sense that it minimizes mean square error. 
+
+Computing SVD is well-optimized. Nonetheless, it requires quite a lot of computation power for large matrices and can be infeasible when time is limited. rSVD provides a very fast randomized low-rank approximation similar to truncated SVD.
 \begin{itemize}
-  \item{Parallelization} Snow package...
-  \item{Memory} R's bigmemory package ... Disappointed with bigalgebra.
-  \item{Numerical Linear Algebra} The efficient C++ library \emph{Armadillo} provides an easy to use API similar to matlab, integrates with other great and common libraries such as LAPACK, BLAS, ATLAS and Intel MKL and integrates seamlessly with R via Rcpp and RcppArmadillo. This is why we chose to use Armadillo for matrix computations. 
+  \item \textbf{Input:} Large $m\times n$ matrix $A$, the rank $k$, integral oversampling parameter $p$ (usually 3 to 10 works well).
+  \item \textbf{Output:} $k$ approximate left singular vectors in $U$, right singular vectors in $V$ and singular values in $D$.
 \end{itemize}
+\begin{enumerate}
+  \item \verb|W <-| random $n\times (k+p)$ matrix. Can be sampled as gaussian or uniform for example.
+  \item \verb|Y <- AW|. Needs one pass through the large matrix $A$. $Y$ is a random sample of the image of $A$.
+  \item \verb|Q <-| orthogonalisation of $Y$. This can be done via economical QR-decomposition.
+  \item \verb|B <-| $Q^TA$. Needs another pass through the matrix $A$.
+  \item Compute $B^T = \hat{Q}R$ via economical QR-decomposition.
+  \item Compute $R = \hat{U}\hat{D}\hat{V}^T$ via SVD. Fast as R is a $(k+p)$-square matrix.
+  \item Assume $A\approx QQ^TA = QB = Q\hat{V}\hat{D}\hat{U}^T\hat{Q}^T$, gives the desired decomposition.
+    \\ Return the truncated $U=(Q\hat{V})_k$, $V=(\hat{Q}\hat{U})_k$ and $D = \hat{D}_k$.
+\end{enumerate}
+The algorithm oversamples the range of $A$ for numerical stability. Note that here the rank $k$ of the approximation is an input, but we could easily implement a rank-revealing version of the algorithm, at the cost of computation speed. Also, the current version makes two passes through the matrix $A$. That could be inconvenient for a truly massive matrix stored in dead memory and/or distributed. There is a way to improve the above to make only one pass through $A$. We refer the interested reader to \cite{MV} for details and other variations of the algorithm. 
 
-As for out-of-core storage and manipulations, we have 
+\section{Implementations in R}
+In R, SVD is implemented with the help of LAPACK. It uses our multicore architecture. Yet, it is as mentioned slow for large matrices.
+
+An implementation of rSVD using ordinary matrices has been provided in R through the package named rsvd. It includes several versions of the algorithm, and we will compare our implementation with this one as well.
+
+We now give details of our implementation in C++, making the assumption that the matrices are to be found in the data directory at the root of the project:
+\begin{verbatim}
+#include <iostream>
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+using namespace std;
+
+// Loads big.matrix into an arma::mat.
+mat readBigMatrix(string fname, int nr, int nc){...}
+
+// [[Rcpp::export]]
+List myrsvd(S4 bigmat, int k, int p){
+  mat Qb, R, Q, U, V, tmp;
+  vec s;
+
+  List desc = bigmat.slot("description");
+  string fname = desc["filename"];
+  fname = "data/" + fname;
+  int nr = desc["nrow"];
+  int nc = desc["ncol"];
+
+  mat A = readBigMatrix(fname, nr, nc);
+  mat W = randn(nc,k+p);
+  cerr << "Computing the ortho basis for approximate range\n";
+  qr_econ(Q,tmp, A * W);
+  cerr << "Computing the QR decomposition\n";
+  qr_econ(Qb, R, A.t() * Q);
+  cerr << "Computing the SVD of low-rank\n";
+  svd(U, s, V, R);
+  cerr << "Returning the values to R\n";
+  mat Uf = Q * V; Uf = Uf.cols(1,k);
+  mat Vf = Qb * U; Vf = Vf.cols(1,k);
+  s = s.subvec(1,k);
+  return List::create(
+      Named("u") = Uf,
+      Named("d") = s,
+      Named("v") = Vf);
+}
+\end{verbatim}
+
+Concerning Armadillo, here we have made use of some of its core features. The types arma::mat and arma::vec implements vectors and matrices, and are handled similarly to matlab. Some random generators are included, such as randn above for random gaussian matrices, again similar to matlab's randn. Finally, through integration with openBLAS, we have made use of matrix decompositions qr\_econ and svd. 
+
+The compiler understands annotation, which is very convenient. The first function, readBigMatrix, is for the C++ program only. On the other hand, because of the Rcpp::export annotation, myrsvd will be callable from R. 
+
+Another convenient feature is that one can mix R, Rcpp and Armadillo types. For example, a Rcpp::export function returning a arma::mat will work with R through RcppArmadillo's automatic conversions. In the code above, we used one instance of this conversion with the int inputs. 
+
+As seen above, one can work in C++ with R's S4 objects. We have made use of this feature to pass a big.matrix descriptor to our function in C++, thus playing well with the bigmemory package. 
+
+To invoke the function in R is now easy:
+\begin{verbatim}
+require(bigmemory)
+require(Rcpp)
+require(RcppArmadillo)
+
+redMat <- attach.big.matrix("data/smallRed.desc")
+redDesc <- describe(redMat)
+
+sourceCpp("src/myrsvd.cpp")
+ll <- myrsvd(redDesc,500,10)
+\end{verbatim}
+
+\section{Empirical Results}
+TODO: agree on a dataset, should have access to raw pixel data, like with pnm-family. For now, we've been using about 700MB picture of andromede.
+
+TODO: Run pure SVD, rsvd and myrsvd, microbenchmark them, look at memory and cpu consumption, plot all singular values on a single plot, remark that rSVD systematically underestimates the values. 
+
+TODO: Show the image compression quality at different levels of compression, controlled by rank $k$.
+
+MAYBE: If time permits, compare with JPEG.
+
+PROB NOT: If time permits, try to get some HSI images. Not only need to have raw pixels, but also the tools to display those images...
+\bibliographystyle{acm}
+\bibliography{rbig.bib}
 
 \end{document}
+

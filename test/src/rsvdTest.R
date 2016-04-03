@@ -6,7 +6,7 @@ require(microbenchmark)
 require(snow)
 
 setwd("/home/zamoj/Documents/doc/ensai/Rbig/project/test")
-nbcores <- 7
+nbcores <- 3
 cl <- makeCluster(nbcores, type = "SOCK")
 
 ## Data
@@ -19,7 +19,11 @@ greenDesc <- describe(greenMat)
 blueDesc <- describe(blueMat)
 
 ## Functions
-source(orthoRange)
+sourceCpp('src/myrsvd.cpp')
+myrsvdWrap <- function(bigmat,k,p){
+  fp <- attr(bigmemory::describe(bigmat),'description')$filename 
+  myrsvd(paste0('data/',fp), nrow(bigmat), ncol(bigmat), k, p) 
+}
 
 
 #### Randomized Low-Rank SVD
@@ -36,7 +40,11 @@ listAW <- clusterCall(cl, rangeApprox, redMat, rBlockSize)
 Q <- orthoRange(listAW) 
 nc <- ncol(Q)
 
-for( i in 1:nbcores){
+
+listBands <- list(redMat,greenMat,blueMat)
+listFiles <- list('data/smallRed.bin', 'data/smallGreen.bin', 'data/smallBlue.bin')
+
+listB <- clusterApply(cl, listFiles, myrsvd, nrow(redMat), ncol(redMat),500, 5)
 
 
-listB <- clusterApply(cl, computeB, redMat, 
+## To do: microbenchmark svd, rsvd and myrsvd
