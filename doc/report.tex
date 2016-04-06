@@ -2,7 +2,7 @@
 
 \usepackage{hyperref}
 \usepackage{xcolor}
-\usepackage{graphicx}
+\usepackage{graphicx, caption}
 \usepackage{geometry}
 \geometry{
   left=2cm, right=2cm, top=2cm, bottom=2cm
@@ -10,6 +10,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{textcomp}
 \usepackage{listings}
+\usepackage[utf8]{inputenc}
 
 %\theoremstyle{definition}
 %\newtheorem{definition}{Definition}[section]
@@ -51,7 +52,7 @@ Very popular amongst statisticians, the R language has many pros and cons. One o
 
 The project thus consists in first installing a framework for efficient numerical linear algebra in R capable of working with large matrices and allowing for parallelisation as much as possible. The framework should bridge the gap between R and C++. We then implement rSVD in this framework and test its performance in the setting of image compressive sensing. Although HSI brings interesting challenges, it is mostly outside the scope of the current project. We rather restrict our focus to the usual color images in the visible spectrum, as it is easier for a wider audience to visualise, including ourselves.
 
-TODO: include description of dataset.
+We will work with two images. The first image takes 274MB of memory and is of size 11'038 by 8'278 image in 3 channels. The second image is the sharpest take of the Andromede galaxy taken by the hubble telescope. The image takes 4.5GB and is 69'536 by 22'230 in size with 3 channels. 
 %We nonetheless deal with a very large image, the sharpest take of the Andromede galaxy taken by the hubble telescope. The image is 4,5GB in size and is thus too large for R's memory restrictions. We compress the image using rSVD and compare its computational power and memory usage with other compression algorithms.  
 
 Prior to this project, we had no knowledge about the topics covered. We would therefore appreciate receiving any constructive comments about it. 
@@ -93,7 +94,7 @@ redMat <- read.big.matrix(filename = "data/smallRed.txt", sep = ' ', type = "sho
                             backingpath = "./data/", backingfile = "smallRed.bin",
                             descriptorfile = "smallRed.desc")
 \end{verbatim}
-The version we used here creates a backedup big.matrix on the filesystem. The type argument refers to the c++ type used to write the entries and can be any of short, integer, double. One of the current most problematic restriction is that big.matrix supports only atomic types, that is the entries must be all of the same type. It is therefore the user's duty to make sure that matrices are converted to a single type. 
+The version we used here creates a backedup big.matrix on the filesystem. The type argument refers to the C++ type used to write the entries and can be any of short, integer, double. One of the current most problematic restriction is that big.matrix supports only atomic types, that is the entries must be all of the same type. It is therefore the user's duty to make sure that matrices are converted to a single type. 
 
 The backing file is specified with the backingpath and backingfile arguments. The binary file it creates is simply the raw bytes of the entries written one after the other, column by column. This is refered in matrix jargon as column-dominant serialization. This makes it easy to read in memory using our own method in C++. 
 
@@ -104,15 +105,15 @@ The first time one invokes read.big.matrix in R takes some non-negligible amount
 redMat <- attach.big.matrix("data/smallRed.desc")
 \end{verbatim}
 
-There are sister packages to bigmemory that implements some functionalities for big.matrix. For example, biganalytics implements bigglm to do efficient generalised linear regression on a big.matrix. Another one is bigalgebra, which was supposed to implement linear algebra manipulation. However, it has only the aritmetic operations and has been under ``heavy development", although the last update on github was in 2014. We therefore do not use bigalgebra at all. 
+There are sister packages to bigmemory that implements some functionalities for big.matrix. For example, biganalytics implements bigglm to do efficient generalised linear regression on a big.matrix. Another one is bigalgebra, which was supposed to implement linear algebra manipulation. However, it has only the arithmetic operations and has been under ``heavy development", although the last update on github was in 2014. We therefore do not use bigalgebra at all. 
 
 \subsection{C++ Linear Algebra Libraries}
-C++ has many efficient libraries for numerical analysis that are commonly used by developpers. In fact, R and octave themselves also rely on these libraries for some functionalities. For example, QR-decomposition in R is done through LINPACK or its more recent fork LAPACK. Naturally, we would like to make use of this power as well. We will therefore install openBLAS and Armadillo. It is better to do it in that order, as Armadillo needs to find openBLAS to configure itself to work with it.
+C++ has many efficient libraries for numerical analysis that are commonly used by developpers. In fact, R and octave themselves also rely on these libraries for some functionalities. For example, QR-decomposition in R is done through LAPACK. Naturally, we would like to make use of this power as well. We will therefore install openBLAS and Armadillo. It is better to do it in that order, as Armadillo needs to find openBLAS to configure itself to work with it.
 
 \subsubsection{openBLAS} 
 BLAS stands for basic linear algebra subprograms. These are routines that provide standard building blocks for performing basic vector and matrix operations. BLAS are efficient, portable and widely available. Higher linear algebra softwares like LAPACK use BLAS. 
 
-However, we want to make use of our multicore architecture. OpenBLAS is an open source implementation of BLAS API with many optimizations for specific processor types and is developped at the Lab of Parallel Software and Computational Science ISCAS. It claims to achieve similar performance as the proprietary freeware Intel MKL (math kernel library). We think therefore it is a good choice.
+However, we want to make use of our multicore architecture. OpenBLAS is developped at the Lab of Parallel Software and Computational Science ISCAS and is an open source implementation of BLAS API with many optimizations for specific processor types. It claims to achieve similar performance as the proprietary freeware Intel MKL (math kernel library). We think therefore it is a good choice.
 
 Quick installation is quite easy:
 \begin{verbatim}
@@ -165,6 +166,8 @@ Computing SVD is well-optimized. Nonetheless, it requires quite a lot of computa
     \\ Return the truncated $U=(Q\hat{V})_k$, $V=(\hat{Q}\hat{U})_k$ and $D = \hat{D}_k$.
 \end{enumerate}
 The algorithm oversamples the range of $A$ for numerical stability. Note that here the rank $k$ of the approximation is an input, but we could easily implement a rank-revealing version of the algorithm, at the cost of computation speed. Also, the current version makes two passes through the matrix $A$. That could be inconvenient for a truly massive matrix stored in dead memory and/or distributed. There is a way to improve the above to make only one pass through $A$. We refer the interested reader to \cite{MV} for details and other variations of the algorithm. 
+
+There is one variation that we implement though, since it is designed to improve accuracy, at the cost of speed. Instead of working with $AW$, we use $Y=(AA^T)^qAW$, for some nonnegative integral power $q$. The singular vectors are left unchanged, however the singular values are raised to the power $2q+1$. This power trick has for effect to increase the difference between successive singular values. We then return $U,V$ and $D^{1/(2q+1)}$.
 
 \section{Implementations in R}
 In R, SVD is implemented with the help of LAPACK. It uses our multicore architecture. Yet, it is as mentioned slow for large matrices.
@@ -235,16 +238,150 @@ sourceCpp("src/myrsvd.cpp")
 ll <- myrsvd(redDesc,500,10)
 \end{verbatim}
 
+%As a last comment, below we will need to manipulate an extremely large matrix. The indices will need to be long int, even long long int. If your LAPACK and openBLAS enable long long int, then the above implementation of rSVD should work as is. Otherwise, which is our case, we can use \verb|field<mat>|
+\section{Image Manipulations}
+Images, even for those with the usual RGB channels, have various formats that include headers. For our purposes, we would like to be able to manipulate raw pixel data. We include in this section a few hacks we have used to do so. 
+
+The first image  was converted into ppm format. We named it pizza.ppm, is a 11'038 by 8'278 image in rgb channels and is 274MB.
+\begin{enumerate}
+  \item To get it loaded into R, we converted it into text with pnmnoraw command. Time: real 9.882s, user 7.172s, sys 2.717s.
+  \item Convert the text file into a csv file with one line of the image per row, keeping the interpixel format (write rbg for each pixel sequentially). To do so, we used sed and awk, which are much faster than equivalent programs in R.
+    \begin{verbatim}
+$> time sed -e '4,$ s/  / /g' data/pizza.txt
+ | awk -F' ' -f src/imageFormatting.awk | sponge data/pizza.txt
+  
+real    1m41.595s
+user    2m1.981s
+sys     0m9.264s
+    \end{verbatim}
+    % Include timings.
+  \item From the csv file, it is now possible to use read.big.matrix to get a filebacked big.matrix. Unfortunately, big.matrix supports only short as the smallest integer type, which is 2bytes instead of the 1byte unsigned char usually used for color intensities. This doubles the image size.
+\begin{verbatim}
+R> ptm <- proc.time()
+R> A <- read.big.matrix(filename = "data/pizza.txt", sep = ' ',
+    type = "short", backingpath = "./data/", backingfile = "pizza.bin",
+    descriptorfile = "pizza.desc")
+R> proc.time() - ptm
+utilisateur     système      écoulé
+     54.321       2.381      59.567
+\end{verbatim}
+  \item Compress using rSVD. We will discuss the results in next section.
+  \item Using a Rcpp::export method, we write the compress version back into raw row-dominant interpixel rgb image. Time varies according to compression, but of the order of 1min.
+  \item Using rawtoppm command, we get back a ppm image.
+\end{enumerate}
+
+We started working with the second image file as well, which is a 4,6GB andromede.psb image taken from the hubble telescope. The extension was unknown to us, so issuing simple bash commands tells us more:
+\begin{verbatim}
+$ wc -c data/andromede.psb
+4637379310 data/andromede.psb
+$ file data/andromede.psb
+data/andromede.psb: Adobe Photoshop Image (PSB), 69536 x 22230, RGB, 3x 8-bit channels
+\end{verbatim}
+The arithmetic of sizes gives us:
+\begin{eqnarray*}
+  3\times 69536\times 22230 \times 1\text{ Byte} &=& 4 637 355 840\text{ Byte}\\
+4 637 379 310\text{ Byte} - 4 637 355 840\text{ Byte} &=& 23 470\text{ Byte}.
+\end{eqnarray*}
+Looking online at the photoshop psb format specifications, we suspect that the additional 23470 Bytes are part of the header, the last part of the format being the image data. We truncate the header with the following command (creating a copy, but could be done inplace as well):
+\begin{verbatim}
+$ dd if=data/andromede.psb bs=512k |
+{ dd bs=23470 count=1 of=/dev/null; dd bs=512k of=data/rawAndroRow.bin;}
+...
+4637379310 bytes (4,6 GB) copied, 43,9735 s, 105 MB/s
+...
+\end{verbatim}
+Also, from the specifications, we learn that the data is written in planar order: first all red data, then green data and finally blue data. Furthermore, each plane is stored in row-dominant format, which is the opposite of big.matrix. We will therefore need to transpose it, for example using inplace transposition or more simply by reading it in and writing it back in different order. We skip the (non-trivial) details, but we now have a planar, column-dominant binary file rawAndro.bin of $22230\times 3$ rows and $69536$ columns.
+
+Next, we create manually the descriptor file for the big.matrix. This is a text file describing a S4 object of class big.matrix.descriptor. We generate it by simply copying the one from any other matrix we have so far and changing the fields appropriately.
+
+At this point, we have an enormous filebacked big.matrix that can be attached in R with no additional efforts. However, trying to run rSVD, we encountered difficulties in Armadillo due to 64bits words implementation. We need here to configure LAPACK, openBLAS and Armadillo to be able to use long long int for indexing huge vectors and matrices. Another solution would be to use Armadillo's field structure to obtain a matrix of matrices and reimplement rSVD with multiplication applied to each block. This is similar to out-of-core solutions of loading only a block of your matrix at a time. Anyhow, this was getting a little deep, so we left it for further work. 
+
 \section{Empirical Results}
-TODO: agree on a dataset, should have access to raw pixel data, like with pnm-family. For now, we've been using about 700MB picture of andromede.
 
-TODO: Run pure SVD, rsvd and myrsvd, microbenchmark them, look at memory and cpu consumption, plot all singular values on a single plot, remark that rSVD systematically underestimates the values. 
+We run the usual SVD in R, which is fully parallelized and uses the 8 CPU for about 12min\footnote{We will not rewrite how to compute time for every example}:
+\begin{verbatim}
+R> res <- svd(as.matrix(A))
+utilisateur     système      écoulé
+   5083.974     378.077     698.627
+\end{verbatim}
 
-TODO: Show the image compression quality at different levels of compression, controlled by rank $k$.
+Next, we compare this with say a 1000 low-rank estimates using the R implementation of rSVD and our implementation. Both are again fully parallelized.
+\begin{verbatim}
+R> rer <- rsvd(as.matrix(A),k=1000,p=10,q=0)
+utilisateur     système      écoulé
+     36.952     278.806      76.876
 
-MAYBE: If time permits, compare with JPEG.
+R> rer2 <- rsvd(as.matrix(A),k=1000,p=10,q=0,method='fast')
+utilisateur     système      écoulé
+    314.123     313.057      86.481
 
-PROB NOT: If time permits, try to get some HSI images. Not only need to have raw pixels, but also the tools to display those images...
+R> rem <- myrsvd(describe(A),1000,10)
+utilisateur     système      écoulé
+    228.685      26.574      38.915
+\end{verbatim}
+Here we that in R's implementation of rsvd, the method ``standard" as opposed to ``fast" is actually faster. Also, our method is twice as fast. However, rSVD systematically underestimates the singular values. Our implementation's precision is a little worse than the R's implementation and is sufficient for practical purposes. The singular values are plotted in Figure~\ref{sv}.
+\begin{figure}[ht]
+  \centering
+  \includegraphics[height=200pt, width=300pt]{sv.png}
+  \caption{First singular values according to the 3 algorithms.}
+  \label{sv}
+\end{figure}
+
+We now reconstruct the images from the myrsvd's output. To do so, we simply proceed as this:
+\begin{verbatim}
+R> iM <- rem$u %*% diag(rem$d[,1]) %*% t(rem$v)
+R> writeMatrixRow(iM, min(iM), max(iM), 'data/pizzaComp1000.bin')
+
+$> rawtoppm -interpixel 11038 8278 data/pizzaComp1000.bin > doc/pizzaComp1000.ppm 
+\end{verbatim}
+
+The rank $k$ gives the amount of compression. Next Figures show images at different compression levels. 
+\noindent\begin{minipage}[t]{0.5\linewidth}
+  \vspace{2ex}
+  \begin{center}
+    \includegraphics[scale=4]{../data/thumbPizza.jpg}
+    \captionof{figure}{Original image: 274MB}
+  \end{center}
+\end{minipage}%
+\begin{minipage}[t]{0.5\linewidth}
+  \vspace{2ex}
+  \begin{center}
+    \includegraphics[scale=1]{../data/thumbPizzaComp1000.jpg}
+    \captionof{figure}{Compressed image at k=1000: 41.4MB}
+    \end{center}
+\end{minipage}\par\bigskip
+
+\noindent\begin{minipage}[t]{0.5\linewidth}
+  \vspace{2ex}
+  \begin{center}
+    \includegraphics[scale=1]{../data/thumbPizzaComp100.jpg}
+    \captionof{figure}{Compressed image at k=100\%: 4.14MB}
+  \end{center}
+\end{minipage}%
+\begin{minipage}[t]{0.5\linewidth}
+  \vspace{2ex}
+  \begin{center}
+    \includegraphics[scale=1]{../data/thumbPizzaComp10.jpg}
+    \captionof{figure}{Compressed image at k=10: 414KB}
+    \end{center}
+\end{minipage}\par\bigskip
+
+%\noindent\begin{minipage}[t]{0.5\linewidth}
+%  \vspace{2ex}
+%  \begin{center}
+%    \includegraphics[scale=1]{../data/thumbPizzaComp8.jpg}
+%    \captionof{figure}{Compressed image at k=8: 207KB}
+%  \end{center}
+%\end{minipage}%
+%\begin{minipage}[t]{0.5\linewidth}
+%  \vspace{2ex}
+%  \begin{center}
+%    \includegraphics[scale=1]{../data/thumbPizzaComp5.jpg}
+%    \captionof{figure}{Compressed image at k=5: 207KB}
+%    \end{center}
+%\end{minipage}\par\bigskip
+
+For applications, compressing sensing is used for speed and to recognize certain objects in large fields. We believe we can recognize the items on the picture easily, although the image quality for the human eye is certainly not as good as with jpeg.
 \bibliographystyle{acm}
 \bibliography{rbig.bib}
 

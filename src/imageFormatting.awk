@@ -10,8 +10,8 @@ NR == 2{
 }
 
 NR > 3{
-  for(i = colour; i <= NF; i = i + 3){
-    if( (NR - 3) % chunkSize == 0 && (i - colour + 3) == 3 * (ncol % fixedWidth)){
+  for(i = 1; i <= NF; i = i+1){
+    if( (NR - 3) % chunkSize == 0 && i == 3 * (ncol % fixedWidth)){
       printf("%s\n", $i);
     } else {
       printf("%s ", $i);
